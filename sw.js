@@ -1,7 +1,7 @@
 // Service worker do OSP Sim: guarda o app (HTML, JS, wasm com a máquina e os exemplos embutidos e ícones)
 // na primeira abertura e responde do cache depois (cache primeiro), para simular sem internet.
 // VERSAO é trocada pelo build.sh a cada build (hash do wasm): um app novo cria outro cache e apaga o antigo.
-const VERSAO = "f5fa401cb2a7";
+const VERSAO = "104db4632152";
 const CACHE = "osp-sim-" + VERSAO;
 const ARQUIVOS = [
   "./",
