@@ -1,0 +1,20 @@
+{
+  "name": "OSP Sim",
+  "short_name": "OSP Sim",
+  "description": "Simulador de programas NC OSP-P (OKUMA): alarmes, percurso, máquina 3D e usinagem.",
+  "lang": "pt-BR",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#15171c",
+  "theme_color": "#1b1e24",
+  "categories": ["productivity", "utilities", "education"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

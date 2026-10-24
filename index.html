@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <!-- viewport-fit=cover: o app ocupa a tela toda e respeita as áreas seguras pelo CSS abaixo -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>OSP Sim</title>
+  <meta name="description" content="Simulador de programas NC OSP-P (OKUMA): alarmes, percurso, máquina 3D e usinagem.">
+  <meta name="theme-color" content="#1b1e24">
+  <meta name="color-scheme" content="dark light">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="OSP Sim">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="format-detection" content="telephone=no">
+  <style>
+    html, body {
+      margin: 0; padding: 0; height: 100%; width: 100%;
+      background: #15171c; color: #e6e8ee;
+      overflow: hidden; overscroll-behavior: none;
+      font-family: -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+      -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    /* áreas seguras (entalhe, Dynamic Island, barra de início, navegação do Android) */
+    #moldura {
+      position: fixed; inset: 0; box-sizing: border-box;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+    #caixa { position: relative; width: 100%; height: 100%; }
+    #osp_canvas { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
+    #osp_loading {
+      position: absolute; inset: 0; display: flex; flex-direction: column; gap: 14px;
+      align-items: center; justify-content: center; text-align: center; padding: 24px;
+      font-size: 15px; color: #9aa3b2;
+    }
+    #osp_loading img { width: 72px; height: 72px; }
+    #osp_loading .barra { width: 160px; height: 3px; border-radius: 2px; background: #2a2f39; overflow: hidden; }
+    #osp_loading .barra i { display: block; width: 40%; height: 100%; background: #5b9bff; animation: vai 1.1s ease-in-out infinite; }
+    @keyframes vai { 0% { transform: translateX(-100%); } 100% { transform: translateX(260%); } }
+    /* aviso de instalação (iPhone: Compartilhar ▸ Adicionar à Tela de Início; Android: botão Instalar) */
+    #instalar {
+      position: fixed; left: 12px; right: 12px;
+      bottom: calc(env(safe-area-inset-bottom) + 132px);
+      display: none; align-items: center; gap: 12px;
+      background: #262a33; color: #e6e8ee; border: 1px solid #353b47; border-radius: 14px;
+      padding: 12px 12px 12px 14px; font-size: 14px; line-height: 1.35;
+      box-shadow: 0 8px 24px rgba(0,0,0,.45); z-index: 10;
+    }
+    #instalar img { width: 36px; height: 36px; border-radius: 8px; flex: none; }
+    #instalar .txt { flex: 1; }
+    #instalar button {
+      flex: none; min-width: 44px; min-height: 44px; border: 0; border-radius: 10px;
+      background: #3a404c; color: #fff; font-size: 16px;
+    }
+    #instalar button.prim { background: #256ce8; padding: 0 14px; font-size: 15px; }
+  </style>
+</head>
+<body>
+  <div id="moldura">
+    <div id="caixa">
+      <canvas id="osp_canvas"></canvas>
+      <div id="osp_loading">
+        <img src="icons/icon-192.png" alt="">
+        <div>Abrindo o OSP Sim…</div>
+        <div class="barra"><i></i></div>
+        <noscript>O OSP Sim precisa de JavaScript e WebAssembly.</noscript>
+      </div>
+    </div>
+  </div>
+  <div id="instalar" role="dialog" aria-label="Instalar o OSP Sim">
+    <img src="icons/apple-touch-icon.png" alt="">
+    <div class="txt" id="instalar_txt"></div>
+    <button class="prim" id="instalar_sim" hidden>Instalar</button>
+    <button id="instalar_fechar" aria-label="Fechar">✕</button>
+  </div>
+  <script>
+    // Service worker (funcionar offline). Só em HTTPS ou localhost.
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+    }
+    (function () {
+      const caixa = document.getElementById("instalar");
+      const txt = document.getElementById("instalar_txt");
+      const sim = document.getElementById("instalar_sim");
+      const chave = "osp-instalar-dispensado";
+      let dispensado = false;
+      try { dispensado = localStorage.getItem(chave) === "1"; } catch (e) {}
+      const instalado = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+      const ua = navigator.userAgent;
+      const ios = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      const safari = ios && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+      document.getElementById("instalar_fechar").onclick = () => {
+        caixa.style.display = "none";
+        try { localStorage.setItem(chave, "1"); } catch (e) {}
+      };
+      const mostrar = (html) => {
+        if (instalado || dispensado) return;
+        txt.innerHTML = html;
+        // depois que o app abriu, para não cobrir a tela de abertura
+        setTimeout(() => { caixa.style.display = "flex"; }, 2500);
+      };
+      // iPhone/iPad no Safari: o iOS não mostra aviso automático
+      if (safari) {
+        mostrar("Instale o OSP Sim: toque em <b>Compartilhar</b> ▸ <b>Adicionar à Tela de Início</b>.");
+      }
+      // Android/Chrome: aviso de instalação do navegador
+      let pedido = null;
+      window.addEventListener("beforeinstallprompt", (e) => {
+        e.preventDefault();
+        pedido = e;
+        sim.hidden = false;
+        mostrar("Instale o OSP Sim para abrir pela tela inicial e usar sem internet.");
+      });
+      sim.onclick = async () => {
+        if (!pedido) return;
+        pedido.prompt();
+        try { await pedido.userChoice; } catch (e) {}
+        pedido = null;
+        caixa.style.display = "none";
+      };
+      window.addEventListener("appinstalled", () => { caixa.style.display = "none"; });
+    })();
+  </script>
+  <script type="module">
+    import init from "./osp_sim.js";
+    init({ module_or_path: "./osp_sim_bg.wasm" }).catch((e) => {
+      const el = document.getElementById("osp_loading");
+      if (el) el.innerHTML = "<p>Não foi possível carregar o OSP Sim.</p><p><small>" + e + "</small></p>";
+    });
+  </script>
+</body>
+</html>
