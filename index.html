@@ -16,6 +16,20 @@
   <meta name="apple-mobile-web-app-title" content="OSP Sim">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="format-detection" content="telephone=no">
+  <!-- tela de abertura do app instalado no iPhone (gerada do logo pelo build.sh; retrato) -->
+  <link rel="apple-touch-startup-image" href="icons/abertura-1320x2868.png" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="icons/abertura-1206x2622.png" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="icons/abertura-1290x2796.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="icons/abertura-1179x2556.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="icons/abertura-1284x2778.png" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="icons/abertura-1170x2532.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="icons/abertura-1080x2340.png" media="(device-width: 360px) and (device-height: 780px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="icons/abertura-1242x2688.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="icons/abertura-1125x2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="icons/abertura-828x1792.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="icons/abertura-1242x2208.png" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="icons/abertura-750x1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="icons/abertura-640x1136.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
   <style>
     html, body {
       margin: 0; padding: 0; height: 100%; width: 100%;
@@ -57,6 +71,30 @@
       background: #3a404c; color: #fff; font-size: 16px;
     }
     #instalar button.prim { background: #256ce8; padding: 0 14px; font-size: 15px; }
+    /* aviso de versão nova (service worker) */
+    #versao {
+      position: fixed; left: 12px; right: 12px; top: calc(env(safe-area-inset-top) + 10px);
+      display: none; align-items: center; gap: 10px; z-index: 11;
+      background: #1f3d73; color: #fff; border-radius: 12px; padding: 8px 8px 8px 14px;
+      font-size: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.45);
+    }
+    #versao .txt { flex: 1; }
+    #versao button { min-height: 40px; min-width: 40px; border: 0; border-radius: 9px; background: #2f6fe0; color: #fff; font-size: 15px; padding: 0 12px; }
+    #versao button.sec { background: transparent; }
+    /* barra de teclas extras do editor, colada no teclado do sistema */
+    #teclas {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 12;
+      display: none; gap: 4px; padding: 5px 6px; overflow-x: auto;
+      background: #262a33; border-top: 1px solid #353b47;
+      -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    }
+    #teclas.on { display: none; }
+    body.teclado #teclas.on { display: flex; }
+    #teclas button {
+      flex: 1 0 40px; height: 40px; border: 0; border-radius: 8px;
+      background: #3a404c; color: #e6e8ee; font: 600 17px ui-monospace, Menlo, monospace;
+    }
+    #teclas button.ativa { background: #256ce8; }
   </style>
 </head>
 <body>
@@ -71,17 +109,20 @@
       </div>
     </div>
   </div>
+  <div id="versao" role="status">
+    <div class="txt">Nova versão disponível</div>
+    <button id="versao_sim">Atualizar</button>
+    <button id="versao_fechar" class="sec" aria-label="Fechar">✕</button>
+  </div>
   <div id="instalar" role="dialog" aria-label="Instalar o OSP Sim">
     <img src="icons/apple-touch-icon.png" alt="">
     <div class="txt" id="instalar_txt"></div>
     <button class="prim" id="instalar_sim" hidden>Instalar</button>
     <button id="instalar_fechar" aria-label="Fechar">✕</button>
   </div>
+  <!-- recursos em paralelo, IndexedDB, compartilhar, teclado, service worker e aviso de versão nova -->
+  <script src="osp-web.js"></script>
   <script>
-    // Service worker (funcionar offline). Só em HTTPS ou localhost.
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
-    }
     (function () {
       const caixa = document.getElementById("instalar");
       const txt = document.getElementById("instalar_txt");
@@ -92,7 +133,7 @@
       const instalado = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
       const ua = navigator.userAgent;
       const ios = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-      const safari = ios && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+      const safari = ios && !/CriOS|FxiOS|EdgiOS|OPiOS|Chrome\//.test(ua);
       document.getElementById("instalar_fechar").onclick = () => {
         caixa.style.display = "none";
         try { localStorage.setItem(chave, "1"); } catch (e) {}
@@ -111,6 +152,8 @@
       let pedido = null;
       window.addEventListener("beforeinstallprompt", (e) => {
         e.preventDefault();
+        // no iPhone/iPad vale a instrução do Safari (o evento só existe no Chromium)
+        if (ios) return;
         pedido = e;
         sim.hidden = false;
         mostrar("Instale o OSP Sim para abrir pela tela inicial e usar sem internet.");
@@ -127,7 +170,8 @@
   </script>
   <script type="module">
     import init from "./osp_sim.js";
-    init({ module_or_path: "./osp_sim_bg.wasm" }).catch((e) => {
+    // o módulo compilado pelo osp-web.js (também vai para o Web Worker do motor)
+    window.ospModuloPronto.then((m) => init({ module_or_path: m })).catch((e) => {
       const el = document.getElementById("osp_loading");
       if (el) el.innerHTML = "<p>Não foi possível carregar o OSP Sim.</p><p><small>" + e + "</small></p>";
     });
